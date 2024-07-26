@@ -2,17 +2,17 @@
   <div class="container">
     <a class="navbar-brand" href="#">
       <img
-        src="/docs/5.3/assets/brand/bootstrap-logo.svg"
+        src="../assets/image/Exchange-rates.jpg"
         alt="Bootstrap"
-        width="30"
-        height="24"
+        width="120"
+        height="95"
       />
     </a>
 
     <div>
-      <h1>Курсы валют</h1>
-      <p>{{ rates['EUR'].formated.from  }}</p>
-      <p>{{ rates['USD'].formated.from  }}</p>
+      <h1>Exchange rates</h1>
+      <p>{{ rates['EUR_UAH'].meta.formated.from  }}</p>
+      <p>{{ rates['USD_UAH'].meta.formated.from  }}</p>
     </div>
   </div>
 </nav>

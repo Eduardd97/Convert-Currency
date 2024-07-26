@@ -12,24 +12,26 @@ import { CommonModule } from '@angular/common';
 })
 export class AppComponent implements OnInit {
   rates: { [key: string]: any } = {}; // Храним курсы валют в объекте
+  defaultAmount: number = 100;
 
   constructor(private currencyService: CurrencyConverterApiService) {}
 
   ngOnInit() {
-    this.fetchRates('UAH', 'EUR', '100');
-    this.fetchRates('UAH', 'USD', '100');
+    this.fetchRates('EUR', 'UAH', this.defaultAmount);
+    this.fetchRates('USD', 'UAH', this.defaultAmount);
   }
 
-  async fetchRates(fromCurrency: string, toCurrency: string, amountCurrency: string) {
+  async fetchRates(fromCurrency: string, toCurrency: string, amountCurrency: number) {
     try {
       
       const result = await this.currencyService.getRates(fromCurrency, toCurrency, amountCurrency);
-      console.log(result)
-      this.rates[toCurrency] = result; // Храним результат в объекте по ключу валюты
+      // console.log(result)
+      this.rates[`${fromCurrency}_${toCurrency}`] = result; // Храним результат в объекте по ключу валюты
 
     } catch (error) {
       console.error(`Error fetching currency rates for ${toCurrency}`, error);
     }
   }
 }
+
 

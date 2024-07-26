@@ -17,15 +17,15 @@ export class CurrencyConverterApiService {
     });
   }
 
-  async getRates(fromCurrency: string, toCurrency: string, amountCurrency: string): Promise<any> {
+  async getRates(fromCurrency: string, toCurrency: string, amountCurrency: number): Promise<any> {
     try {
       const response = await this.axiosClient.get('', {
         params: { from: fromCurrency,
           to: toCurrency,
           amount: amountCurrency },
       });
-      console.log(response.data.meta)
-      return response.data.meta;
+      
+      return response.data;
     } catch (error) {
       console.error('Error fetching currency rates', error);
       throw error;
