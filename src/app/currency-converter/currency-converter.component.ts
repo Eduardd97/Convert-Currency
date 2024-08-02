@@ -1,99 +1,131 @@
 import { Component, OnInit } from '@angular/core';
 import { CurrencyConverterApiService } from '../service/currency-converter-api.service';
 import { FormsModule } from '@angular/forms';
+import { CurrencyConversionParams } from '../type';
+import { Subject, Observable, of } from 'rxjs';
+import { debounceTime, switchMap, catchError, tap } from 'rxjs/operators';
+import { AppSelectComponent } from '../../app-select/app-select.component';
+import { map } from 'rxjs/operators';
+import { AppInputComponent } from '../../app-input/app-input.component';
 
 @Component({
   selector: 'app-currency-converter',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, AppInputComponent, AppSelectComponent],
   templateUrl: './currency-converter.component.html',
   styleUrls: ['./currency-converter.component.css'],
 })
 export class CurrencyConverterComponent implements OnInit {
-  currencies = ['UAH', 'USD', 'EUR', 'PLN', 'CHF', 'JPY', 'GBP'];
+  currencies: string[] = [];
   currencyFrom: string = '';
   currencyTo: string = '';
   amountFrom: number = 0;
   amountTo: number = 0;
 
-  private debounceTimeout: any;
+  private currencyChange$ = new Subject<void>();
 
   constructor(private currencyService: CurrencyConverterApiService) {}
 
   ngOnInit(): void {
-    if (this.currencyFrom && this.currencyTo) {
-      this.convertCurrency();
-    }
+    this.currencyService.getCurrencies()
+    .pipe(
+      tap(response => {
+        if (response.success) {
+          this.currencies = Object.keys(response.result); // Используем ключи объекта как список валют
+        }
+      }),
+      catchError((error) => {
+        console.error('Error fetching currencies:', error);
+        return of(null);
+      })
+    )
+    .subscribe();
+
+    this.currencyChange$
+      .pipe(
+        debounceTime(500),
+        switchMap(() => this.convertCurrency()),
+        catchError((error) => {
+          console.error('Error during currency conversion:', error);
+          return of(null); // Пустое значение, если произошла ошибка
+        })
+      )
+      .subscribe();
   }
 
-  async convertCurrency() {
+  convertCurrency(): Observable<void> {
+    console.log('Currency From:', this.currencyFrom);
+    console.log('Currency To:', this.currencyTo);
+    console.log('Amount From:', this.amountFrom);
+    console.log('Amount To:', this.amountTo);
     if (
       !this.currencyFrom ||
       !this.currencyTo ||
-      this.currencyFrom === 'Выберите Валюту' ||
-      this.currencyTo === 'Выберите Валюту'
+      this.currencyFrom === 'Select Currency' ||
+      this.currencyTo === 'Select Currency'
+      
     ) {
-      return;
+      console.log('Invalid currencies selected');
+      return of(); // Возвращаем Observable без значений
     }
 
     if (this.currencyTo === this.currencyFrom) {
       this.amountTo = this.amountFrom;
-      return;
+      return of(); // Ничего не делаем, если валюты совпадают
     } else if (this.currencyFrom === this.currencyTo) {
       this.amountFrom = this.amountTo;
     }
 
-    try {
-      if (this.amountTo) {
-        const responseToFrom = await this.currencyService.getRates(
-          this.currencyTo,
-          this.currencyFrom,
-          this.amountTo
+    const params: CurrencyConversionParams = {
+      from: this.currencyFrom,
+      to: this.currencyTo,
+      amount: this.amountFrom,
+    };
+
+    if (this.amountTo) {
+      return this.currencyService
+        .getRates({
+          ...params,
+          to: this.currencyTo,
+          from: this.currencyFrom,
+          amount: this.amountTo,
+        })
+        .pipe(
+          tap((response) => {
+            this.amountFrom = response.result;
+          }),
+          map(() => void 0)
         );
-        this.amountFrom = responseToFrom.result;
-      } else if (this.amountFrom) {
-        const responseFromTo = await this.currencyService.getRates(
-          this.currencyFrom,
-          this.currencyTo,
-          this.amountFrom
+    } else if (this.amountFrom) {
+      return this.currencyService
+        .getRates(params)
+        .pipe(
+          tap((response) => {
+            this.amountTo = response.result;
+          }),
+          map(() => void 0)
         );
-        this.amountTo = responseFromTo.result;
-      }
-    } catch (error) {
-      console.error('Error during currency conversion:', error);
     }
+
+    return of(); // Возвращаем Observable без значений, если нет данных для конвертации
   }
 
-  onCurrencyChangeFrom(event: Event) {
-    const selectElement = event.target as HTMLSelectElement;
-    this.currencyFrom = selectElement.value;
-    
-    this.debounceConvertCurrency();  
+  onCurrencyChangeFrom(value: string) {
+    this.currencyFrom = value;
+    console.log(this.currencyFrom)
+    this.currencyChange$.next(); // Триггерим изменение
+  }
+  
+  onCurrencyChangeTo(value: string) {
+    this.currencyTo = value;
+    this.currencyChange$.next(); // Триггерим изменение
   }
 
-  onCurrencyChangeTo(event: Event) {
-    const selectElement = event.target as HTMLSelectElement;
-    this.currencyTo = selectElement.value;
-    
-    this.debounceConvertCurrency();  
+  onAmountChange(value: number) {
+    this.amountFrom = value;
+    console.log(this.amountFrom)
+    this.currencyChange$.next(); // Триггерим изменение
   }
-
-  onAmountChange(value: number) {  
-    this.amountFrom = value;  
-
-    // Устанавливаем debounce  
-    this.debounceConvertCurrency();  
-  }  
-
-  private debounceConvertCurrency() {  
-    // Очистить таймер, если он существует  
-    if (this.debounceTimeout) {  
-      clearTimeout(this.debounceTimeout);  
-    }  
-
-    // Установить новый таймер на 500 мс (или любое другое время, которое вам подходит)  
-    this.debounceTimeout = setTimeout(() => {  
-      this.convertCurrency();  
-    }, 1000);  
-  } 
 }
+
+

@@ -1,34 +1,44 @@
 import { Injectable } from '@angular/core';
-import axios, { AxiosInstance } from 'axios';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { CurrenciesResponse, CurrencyConversionParams, CurrencyConversionResponse } from '../type';
+import { environment, environmentCurrencies } from '../../enviroument/environment';
+
 
 @Injectable({
   providedIn: 'root',
 })
 export class CurrencyConverterApiService {
-  private axiosClient: AxiosInstance;
+  private baseUrl: string = environment.apiUrl;
+  private headers = {
+    'x-rapidapi-key': environment.apiKey,
+    'x-rapidapi-host': environment.apiHost,
+  };
 
-  constructor() {
-    this.axiosClient = axios.create({
-      baseURL: 'https://currency-converter-pro1.p.rapidapi.com/convert',
-      headers: {
-        'x-rapidapi-key': '9ebb47f7c6mshfe8c805d52bddacp1f9a17jsnd085d3940efd',
-        'x-rapidapi-host': 'currency-converter-pro1.p.rapidapi.com',
-      },
+  constructor(private http: HttpClient) {}
+
+  getRates(params: CurrencyConversionParams): Observable<CurrencyConversionResponse> {
+    let httpParams = new HttpParams();
+    for (const key in params) {
+      if (params.hasOwnProperty(key)) {
+        httpParams = httpParams.set(key, params[key]);
+      }
+    }
+
+    return this.http.get<CurrencyConversionResponse>(this.baseUrl, {
+      headers: this.headers,
+      params: httpParams,
     });
   }
 
-  async getRates(fromCurrency: string, toCurrency: string, amountCurrency: number): Promise<any> {
-    try {
-      const response = await this.axiosClient.get('', {
-        params: { from: fromCurrency,
-          to: toCurrency,
-          amount: amountCurrency },
-      });
-      
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching currency rates', error);
-      throw error;
-    }
+  private apiUrlCurrencies = environmentCurrencies.apiUrlCurrencies;
+  private headersCurrencies = new HttpHeaders({
+    'x-rapidapi-key': environmentCurrencies.apiKeyCurrencies,
+    'x-rapidapi-host': environmentCurrencies.apiHostCurrencies
+  });
+
+  getCurrencies(): Observable<CurrenciesResponse> {
+    return this.http.get<CurrenciesResponse>(this.apiUrlCurrencies, { headers: this.headersCurrencies });
   }
 }
+

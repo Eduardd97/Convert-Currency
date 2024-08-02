@@ -1,17 +1,19 @@
 import { Component, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { CurrencyConverterApiService } from './service/currency-converter-api.service';
-import { CommonModule } from '@angular/common';
+import { CurrencyConversionResponse } from './type';
+import { switchMap, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, CommonModule],
+  imports: [RouterOutlet],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
 })
 export class AppComponent implements OnInit {
-  rates: { [key: string]: any } = {}; // Храним курсы валют в объекте
+  rates: { [key: string]: CurrencyConversionResponse } = {}; // Храним курсы валют в объекте
   defaultAmount: number = 100;
 
   constructor(private currencyService: CurrencyConverterApiService) {}
@@ -21,17 +23,27 @@ export class AppComponent implements OnInit {
     this.fetchRates('USD', 'UAH', this.defaultAmount);
   }
 
-  async fetchRates(fromCurrency: string, toCurrency: string, amountCurrency: number) {
-    try {
-      
-      const result = await this.currencyService.getRates(fromCurrency, toCurrency, amountCurrency);
-      // console.log(result)
-      this.rates[`${fromCurrency}_${toCurrency}`] = result; // Храним результат в объекте по ключу валюты
-
-    } catch (error) {
-      console.error(`Error fetching currency rates for ${toCurrency}`, error);
-    }
+  fetchRates(
+    fromCurrency: string,
+    toCurrency: string,
+    amountCurrency: number
+  ) {
+    this.currencyService
+      .getRates({
+        from: fromCurrency,
+        to: toCurrency,
+        amount: amountCurrency,
+      })
+      .pipe(
+        switchMap((result) => {
+          this.rates[`${fromCurrency}_${toCurrency}`] = result;
+          return of();
+        }),
+        catchError((error) => {
+          console.error(`Error fetching currency rates for ${toCurrency}`, error);
+          return of();
+        })
+      )
+      .subscribe();
   }
 }
-
-
