@@ -54,10 +54,6 @@ export class CurrencyConverterComponent implements OnInit {
   }
 
   convertCurrency(): Observable<void> {
-    console.log('Currency From:', this.currencyFrom);
-    console.log('Currency To:', this.currencyTo);
-    console.log('Amount From:', this.amountFrom);
-    console.log('Amount To:', this.amountTo);
     if (
       !this.currencyFrom ||
       !this.currencyTo ||
@@ -65,7 +61,6 @@ export class CurrencyConverterComponent implements OnInit {
       this.currencyTo === 'Select Currency'
       
     ) {
-      console.log('Invalid currencies selected');
       return of(); // Возвращаем Observable без значений
     }
 
@@ -112,7 +107,6 @@ export class CurrencyConverterComponent implements OnInit {
 
   onCurrencyChangeFrom(value: string) {
     this.currencyFrom = value;
-    console.log(this.currencyFrom)
     this.currencyChange$.next(); // Триггерим изменение
   }
   
@@ -123,7 +117,6 @@ export class CurrencyConverterComponent implements OnInit {
 
   onAmountChange(value: number) {
     this.amountFrom = value;
-    console.log(this.amountFrom)
     this.currencyChange$.next(); // Триггерим изменение
   }
 }

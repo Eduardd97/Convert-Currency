@@ -46,7 +46,6 @@ export class AppSelectComponent implements ControlValueAccessor {
   onChangeSelect(event: Event): void {
     const selectElement = event.target as HTMLSelectElement;
     this.value = selectElement.value;
-    console.log(this.value)
     this.onChange(this.value); // Передача значения в родительский компонент
   }
 }
