@@ -4,9 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { CurrencyConversionParams } from '../type';
 import { Subject, Observable, of } from 'rxjs';
 import { debounceTime, switchMap, catchError, tap } from 'rxjs/operators';
-import { AppSelectComponent } from '../../app-select/app-select.component';
+import { AppSelectComponent } from '../app-select/app-select.component';
 import { map } from 'rxjs/operators';
-import { AppInputComponent } from '../../app-input/app-input.component';
+import { AppInputComponent } from '../app-input/app-input.component';
 
 @Component({
   selector: 'app-currency-converter',
