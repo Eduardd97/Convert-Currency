@@ -4,7 +4,7 @@
       <div class="input-group mb-3">
         <app-number-input
           [(ngModel)]="amountFrom"
-          (ngModelChange)="onAmountChange($event)"
+          (ngModelChange)="onAmountChangeFrom($event)"
         >
         </app-number-input>
         <app-currency-select
@@ -20,7 +20,7 @@
       <div class="input-group mb-3">
         <app-number-input
           [(ngModel)]="amountTo"
-          (ngModelChange)="onAmountChange($event)"
+          (ngModelChange)="onAmountChangeTo($event)"
         >
         </app-number-input>
         <app-currency-select

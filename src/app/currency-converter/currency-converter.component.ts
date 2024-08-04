@@ -19,84 +19,98 @@ export class CurrencyConverterComponent implements OnInit {
   currencies: string[] = [];
   currencyFrom: string = '';
   currencyTo: string = '';
-  amountFrom: number = 0;
-  amountTo: number = 0;
+  amountFrom: number | null = null;
+  amountTo: number | null = null;
 
   private currencyChange$ = new Subject<void>();
+  private isUpdating: boolean = false;
+  private debounceTimeMs: number = 1000; // Задержка перед конвертацией
+  private lastChangedInput: 'amountFrom' | 'amountTo' | null = null;
 
   constructor(private currencyService: CurrencyConverterApiService) {}
 
   ngOnInit(): void {
     this.currencyService.getCurrencies()
-    .pipe(
-      tap(response => {
-        if (response.success) {
-          this.currencies = Object.keys(response.result); // Используем ключи объекта как список валют
-        }
-      }),
-      catchError((error) => {
-        console.error('Error fetching currencies:', error);
-        return of(null);
-      })
-    )
-    .subscribe();
+      .pipe(
+        tap(response => {
+          if (response.success) {
+            this.currencies = Object.keys(response.result);
+          }
+        }),
+        catchError(error => {
+          console.error('Error fetching currencies:', error);
+          return of(null);
+        })
+      )
+      .subscribe();
 
     this.currencyChange$
       .pipe(
-        debounceTime(500),
+        debounceTime(this.debounceTimeMs), // Устанавливаем задержку
         switchMap(() => this.convertCurrency()),
-        catchError((error) => {
+        catchError(error => {
           console.error('Error during currency conversion:', error);
-          return of(null); // Пустое значение, если произошла ошибка
+          return of(null);
         })
       )
       .subscribe();
   }
 
   convertCurrency(): Observable<void> {
-    if (
-      !this.currencyFrom ||
-      !this.currencyTo ||
-      this.currencyFrom === 'Select Currency' ||
-      this.currencyTo === 'Select Currency'
-      
-    ) {
-      return of(); // Возвращаем Observable без значений
+    // Проверяем совпадают ли валюта "из" и валюта "в"
+    if (this.currencyFrom === this.currencyTo) {
+      if (this.amountFrom !== null) {
+        if (!this.isUpdating) {
+          this.isUpdating = true;
+          this.amountTo = this.amountFrom;
+          this.isUpdating = false;
+        }
+      } else if (this.amountTo !== null) {
+        if (!this.isUpdating) {
+          this.isUpdating = true;
+          this.amountFrom = this.amountTo;
+          this.isUpdating = false;
+        }
+      }
+      return of(); // Возвращаем Observable без значений, если валюты совпадают
     }
 
-    if (this.currencyTo === this.currencyFrom) {
-      this.amountTo = this.amountFrom;
-      return of(); // Ничего не делаем, если валюты совпадают
-    } else if (this.currencyFrom === this.currencyTo) {
-      this.amountFrom = this.amountTo;
-    }
+    // Определяем, какой инпут был последним изменён и выполняем конвертацию
+    if (this.lastChangedInput === 'amountFrom' && this.amountFrom !== null && this.amountFrom > 0) {
+      const params: CurrencyConversionParams = {
+        from: this.currencyFrom,
+        to: this.currencyTo,
+        amount: this.amountFrom,
+      };
 
-    const params: CurrencyConversionParams = {
-      from: this.currencyFrom,
-      to: this.currencyTo,
-      amount: this.amountFrom,
-    };
-
-    if (this.amountTo) {
-      return this.currencyService
-        .getRates({
-          ...params,
-          to: this.currencyTo,
-          from: this.currencyFrom,
-          amount: this.amountTo,
-        })
+      return this.currencyService.getRates(params)
         .pipe(
-          tap((response) => {
-            this.amountFrom = response.result;
+          tap(response => {
+            if (!this.isUpdating) {
+              this.isUpdating = true;
+              this.amountTo = response.result;
+              this.isUpdating = false;
+            }
           }),
           map(() => void 0)
         );
-    } else if (this.amountFrom) {
-      return this.currencyService
-        .getRates(params)
+    }
+
+    if (this.lastChangedInput === 'amountTo' && this.amountTo !== null && this.amountTo > 0) {
+      const reverseParams: CurrencyConversionParams = {
+        from: this.currencyTo,
+        to: this.currencyFrom,
+        amount: this.amountTo,
+      };
+
+      return this.currencyService.getRates(reverseParams)
         .pipe(
-          tap((response) => {
-            this.amountTo = response.result;
+          tap(response => {
+            if (!this.isUpdating) {
+              this.isUpdating = true;
+              this.amountFrom = response.result;
+              this.isUpdating = false;
+            }
           }),
           map(() => void 0)
         );
@@ -107,18 +121,43 @@ export class CurrencyConverterComponent implements OnInit {
 
   onCurrencyChangeFrom(value: string) {
     this.currencyFrom = value;
-    this.currencyChange$.next(); // Триггерим изменение
-  }
-  
-  onCurrencyChangeTo(value: string) {
-    this.currencyTo = value;
-    this.currencyChange$.next(); // Триггерим изменение
+    this.triggerConversionWithDelay(); // Запускаем конвертацию с задержкой
   }
 
-  onAmountChange(value: number) {
+  onCurrencyChangeTo(value: string) {
+    this.currencyTo = value;
+    this.triggerConversionWithDelay(); // Запускаем конвертацию с задержкой
+  }
+
+  onAmountChangeFrom(value: number | null) {
     this.amountFrom = value;
-    this.currencyChange$.next(); // Триггерим изменение
+    if (this.amountFrom === null || this.amountFrom === 0) {
+      this.amountTo = null; // Очистка второго инпута при удалении значения
+    }
+    this.lastChangedInput = 'amountFrom'; // Отмечаем, что изменился первый инпут
+    this.triggerConversionWithDelay(); // Запускаем конвертацию с задержкой
+  }
+
+  onAmountChangeTo(value: number | null) {
+    this.amountTo = value;
+    if (this.amountTo === null || this.amountTo === 0) {
+      this.amountFrom = null; // Очистка первого инпута при удалении значения
+    }
+    this.lastChangedInput = 'amountTo'; // Отмечаем, что изменился второй инпут
+    this.triggerConversionWithDelay(); // Запускаем конвертацию с задержкой
+  }
+
+  private triggerConversionWithDelay() {
+    // Запускаем конвертацию через задержку
+    setTimeout(() => {
+      this.currencyChange$.next(); // Триггерим изменение
+    }, this.debounceTimeMs);
   }
 }
+
+
+
+
+
 
 
